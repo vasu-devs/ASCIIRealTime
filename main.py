@@ -1,50 +1,64 @@
-import cv2,os,shutil,time, string
+import cv2
+import mediapipe as mp
 import numpy as np
-
-cap = cv2.VideoCapture(r"E:\STUDY\Projects\SMALL\AsciiRealTime\video.mp4", cv2.CAP_FFMPEG)
-
-
-chars = string.printable
-chars = [c for c in chars if c.strip()] 
-
-term_width , _ = shutil.get_terminal_size()
-fgbg = cv2.createBackgroundSubtractorMOG2(history=50, varThreshold=10, detectShadows=False)
-
-def frame_to_ascii(frame, width=term_width):
-    gray=cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    mask = fgbg.apply(frame)
-    mask = cv2.threshold(mask , 200,255,cv2.THRESH_BINARY)[1]
+import string
+import os
 
 
-    h,w=gray.shape
-    aspect_ratio=h/w
-    new_height=int(aspect_ratio*width*0.55)
-    gray=cv2.resize(gray,(width,new_height))
-    mask=cv2.resize(mask,(width,new_height))
 
-    gray_norm = (gray/255)*(len(chars)-1)
-    ascii_frame="\n".join(
-        ''.join(
-            chars[int(gray_norm[y,x])] if mask[y,x] > 0 else "." 
-            for x in range(width)
-            )
-            for y in range(new_height)
-        )
-    return ascii_frame
-    
+mp_selfie_segentation = mp.solutions.selfie_segmentation
+segmentation = mp_selfie_segentation.SelfieSegmentation(model_selection=1)
 
+fgbg = cv2.createBackgroundSubtractorMOG2(history=200, varThreshold=20 , detectShadows=False)
 
-while True:
-    frame_duration = 1 / 30  
+chars = np.array(list(string.printable[:94]))
+font_ratio=0.45
+
+cap = cv2.VideoCapture(0)
+
+while cap.isOpened():
     ret , frame = cap.read()
     if not ret:
         break
 
-    ascii_frame=frame_to_ascii(frame)
-    os.system('cls' if os.name=='nt' else 'clear' )
-    # cv2.imshow("Video", frame)
-    print(ascii_frame)
-    time.sleep(frame_duration)
+    frame= cv2.resize(frame,(120,48))
+    h,w,_ = frame.shape
 
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
+    # frame= cv2.flip(frame ,1)
+    
+    rgb = cv2.cvtColor(frame , cv2.COLOR_BGR2RGB)
+    result = segmentation.process(rgb)
+    mask_mp = result.segmentation_mask
+    masp_mp = (mask_mp>0.5).astype(np.uint8)
+
+    mask_fg = fgbg.apply(frame)
+    mask_fg = cv2.threshold(mask_fg, 200,1,cv2.THRESH_BINARY)[1]
+
+    mask_fg = cv2.resize(mask_fg, (frame.shape[1], frame.shape[0]))
+    mask_mp = cv2.resize(mask_mp, (frame.shape[1], frame.shape[0]))
+    mask_mp = (mask_mp * 255).astype(np.uint8)
+    mask_fg = (mask_fg * 255).astype(np.uint8)
+
+    combined = cv2.bitwise_or(mask_mp, mask_fg)
+
+
+    combined=cv2.medianBlur(combined,5)
+
+    _ , combined = cv2.threshold(combined, 200,255, cv2.THRESH_BINARY)
+
+    ascii_frame = ""
+    for y in range(0,h):
+        for x in range(0,w):
+            if combined[y,x]>0:
+                brightness = gray[y,x]
+                char = chars[int(brightness/256*len(chars))]
+                ascii_frame+=char
+            else:
+                ascii_frame+="."
+        ascii_frame+="\n"
+    os.system('cls' if os.name=='nt' else 'clear')
+    print(ascii_frame)
 
 cap.release()
