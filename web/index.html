@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ASCII Camera (MediaPipe)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/selfie_segmentation.js"></script>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      padding: 0;
+      margin: 0;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 25%, #0f3460 50%, #533483 75%, #1a1a2e 100%);
+      background-size: 400% 400%;
+      animation: gradientShift 15s ease infinite;
+    }
+    @keyframes gradientShift {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+    body.bg-white {
+      background: linear-gradient(135deg, #fef9f3 0%, #fef4e9 25%, #fff5f7 50%, #f8f9ff 75%, #fef9f3 100%);
+      background-size: 400% 400%;
+    }
+    #ascii {
+      font-family: monospace;
+      font-size: 6px;
+      line-height: 6px;
+      margin: 0;
+      white-space: pre;
+      image-rendering: pixelated;
+      image-rendering: -moz-crisp-edges;
+      image-rendering: crisp-edges;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #emojiCanvas {
+      image-rendering: pixelated;
+      image-rendering: -moz-crisp-edges;
+      image-rendering: crisp-edges;
+    }
+    canvas {
+      image-rendering: pixelated;
+      image-rendering: -moz-crisp-edges;
+      image-rendering: crisp-edges;
+    }
+    video {
+      image-rendering: pixelated;
+      image-rendering: -moz-crisp-edges;
+      image-rendering: crisp-edges;
+    }
+    * {
+      -webkit-font-smoothing: none;
+      -moz-osx-font-smoothing: unset;
+      image-rendering: pixelated;
+    }
+    #controls {
+      backdrop-filter: blur(20px) saturate(200%);
+      -webkit-backdrop-filter: blur(20px) saturate(200%);
+      background-color: rgba(17, 24, 39, 0.8) !important;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.6);
+      width: auto;
+      min-width: min-content;
+    }
+    @media (max-width: 639px) {
+      #controls {
+        left: 50% !important;
+        transform: translateX(-50%) !important;
+        width: calc(100vw - 1rem);
+        max-width: calc(100vw - 1rem);
+        padding: 0.5rem !important;
+        gap: 0.5rem !important;
+        flex-wrap: wrap;
+        justify-content: space-around !important;
+      }
+      #controls label {
+        flex: 0 1 auto;
+        min-width: fit-content;
+      }
+      #controls button {
+        flex: 0 0 auto;
+      }
+    }
+    @media (min-width: 640px) {
+      #controls {
+        border-radius: 16px;
+      }
+    }
+    #controls.light-mode {
+      background-color: rgba(255, 255, 255, 0.7) !important;
+      border: 1px solid rgba(255, 255, 255, 0.4);
+      box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.08);
+    }
+    #controls select,
+    #controls button {
+      border-radius: 6px;
+      backdrop-filter: blur(10px);
+      background: rgba(55, 65, 81, 0.7) !important;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+      transition: all 0.2s ease;
+    }
+    @media (min-width: 640px) {
+      #controls select,
+      #controls button {
+        border-radius: 8px;
+      }
+    }
+    #controls select:hover,
+    #controls button:hover {
+      background: rgba(75, 85, 99, 0.8) !important;
+      box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+      transform: translateY(-1px);
+    }
+    #controls input[type="range"] {
+      cursor: pointer;
+      accent-color: rgba(96, 165, 250, 0.8);
+    }
+    #controls.light-mode select,
+    #controls.light-mode button {
+      background: rgba(255, 255, 255, 0.85) !important;
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.03), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+      color: #000 !important;
+    }
+    #controls.light-mode select:hover,
+    #controls.light-mode button:hover {
+      background: rgba(255, 255, 255, 0.95) !important;
+      box-shadow: 0 6px 12px rgba(0, 0, 0, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+    }
+    #controls.light-mode select option {
+      background: #fff;
+      color: #000;
+    }
+    #controls input[type="checkbox"] {
+      cursor: pointer;
+      accent-color: rgba(96, 165, 250, 0.8);
+      flex-shrink: 0;
+    }
+    @media (max-width: 639px) {
+      #controls input[type="range"] {
+        min-width: 60px;
+        max-width: 80px;
+      }
+      #controls select {
+        max-width: 100px;
+        font-size: 9px !important;
+      }
+    }
+    #log {
+      max-width: calc(100vw - 1rem);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    #emojiCanvas, #ascii {
+      margin-top: 70px;
+      margin-bottom: 70px;
+      border-radius: 16px;
+      backdrop-filter: blur(20px) saturate(180%);
+      -webkit-backdrop-filter: blur(20px) saturate(180%);
+      padding: 1rem;
+      box-shadow: 
+        0 8px 32px 0 rgba(0, 0, 0, 0.6),
+        inset 0 1px 0 rgba(255, 255, 255, 0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #emojiCanvas {
+      background: rgba(0, 0, 0, 0.4) !important;
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    #ascii {
+      background: rgba(0, 0, 0, 0.4) !important;
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    body.bg-white #emojiCanvas {
+      background: rgba(255, 255, 255, 0.6) !important;
+      border: 1px solid rgba(255, 255, 255, 0.7);
+      box-shadow: 
+        0 8px 32px 0 rgba(31, 38, 135, 0.08),
+        inset 0 1px 0 rgba(255, 255, 255, 0.5);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    body.bg-white #ascii {
+      background: rgba(255, 255, 255, 0.6) !important;
+      border: 1px solid rgba(255, 255, 255, 0.7);
+      box-shadow: 
+        0 8px 32px 0 rgba(31, 38, 135, 0.08),
+        inset 0 1px 0 rgba(255, 255, 255, 0.5);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    @media (min-width: 640px) {
+      #emojiCanvas, #ascii {
+        margin-top: 80px;
+        margin-bottom: 80px;
+      }
+    }
+    @media (max-width: 639px) {
+      #controls {
+        max-width: calc(100vw - 1rem);
+        justify-content: center;
+      }
+      #emojiCanvas, #ascii {
+        margin-top: 65px;
+        margin-bottom: 60px;
+        padding: 0.5rem;
+        border-radius: 12px;
+      }
+    }
+    #footer {
+      backdrop-filter: blur(20px) saturate(200%);
+      -webkit-backdrop-filter: blur(20px) saturate(200%);
+      background-color: rgba(17, 24, 39, 0.8) !important;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.6);
+    }
+    #footer.light-mode {
+      background-color: rgba(255, 255, 255, 0.7) !important;
+      border: 1px solid rgba(255, 255, 255, 0.4);
+      box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.08);
+    }
+    #footer a {
+      transition: all 0.2s ease;
+    }
+    #footer a:hover {
+      transform: translateY(-2px);
+      opacity: 0.8;
+    }
+    #footer.light-mode a {
+      color: #000 !important;
+    }
+    #footer.light-mode a:hover {
+      color: #374151 !important;
+    }
+  </style>
+</head>
+<body class="bg-black text-white m-0 overflow-hidden flex items-center justify-center min-h-screen">
+  
+  
+  <!-- Controls Bar -->
+  <div id="controls" class="fixed top-2 sm:top-3 left-1/2 -translate-x-1/2 bg-gray-900 text-white px-2 sm:px-4 py-1.5 sm:py-2 flex flex-wrap items-center justify-center gap-1.5 sm:gap-2 md:gap-4 z-10">
+    <label class="flex items-center gap-1 sm:gap-2 text-[9px] sm:text-[10px] md:text-xs whitespace-nowrap flex-shrink-0">
+      <span class="sm:hidden">P:</span>
+      <select id="palette" class="bg-gray-800 text-white px-1 sm:px-2 py-0.5 sm:py-1 text-[9px] sm:text-[10px] md:text-xs border-0 flex-shrink-0">
+        <option value="basic">Basic</option>
+        <option value="extended">Extended</option>
+        <option value="blocks">Blocks</option>
+        <option value="emoji">Emoji</option>
+        <option value="custom">Custom</option>
+      </select>
+    </label>
+    
+    <label class="flex items-center gap-1 sm:gap-2 text-[9px] sm:text-[10px] md:text-xs whitespace-nowrap flex-shrink-0">
+      <input type="checkbox" id="bgToggle" class="w-3 h-3 sm:w-3.5 sm:h-3.5 md:w-4 md:h-4 flex-shrink-0" />
+      <span class="hidden sm:inline">Remove BG</span>
+      <span class="sm:hidden">BG</span>
+    </label>
+    
+    <label class="flex items-center gap-1 sm:gap-2 text-[9px] sm:text-[10px] md:text-xs whitespace-nowrap flex-shrink-0">
+      <span class="hidden sm:inline">Res:</span>
+      <span class="sm:hidden">R:</span>
+      <input type="range" id="resSlider" min="10" max="60" step="10" value="30" class="w-14 sm:w-16 md:w-20 flex-shrink-0" />
+    </label>
+    
+    <button id="themeToggle" class="text-[9px] sm:text-[10px] md:text-xs px-1.5 sm:px-2 md:px-3 py-0.5 sm:py-1 bg-gray-800 cursor-pointer flex-shrink-0">
+      🌙
+    </button>
+  </div>
+  </div>
+
+  <!-- Video Elements -->
+  <video id="video" autoplay playsinline class="hidden" style="image-rendering: pixelated; image-rendering: -moz-crisp-edges; image-rendering: crisp-edges;"></video>
+  <canvas id="canvas" class="hidden" style="image-rendering: pixelated; image-rendering: -moz-crisp-edges; image-rendering: crisp-edges;"></canvas>
+  
+  <!-- Display Elements (Responsive but constant size) -->
+  <canvas id="emojiCanvas" class="hidden" style="width: min(95vw, 1200px); height: min(85vh, 800px); object-fit: contain; image-rendering: pixelated; image-rendering: -moz-crisp-edges; image-rendering: crisp-edges;"></canvas>
+  <pre id="ascii" style="width: min(95vw, 1200px); height: min(85vh, 800px); object-fit: contain; image-rendering: pixelated; image-rendering: -moz-crisp-edges; image-rendering: crisp-edges;" class="overflow-hidden"></pre>
+
+  <!-- Footer -->
+  <div id="footer" class="fixed bottom-2 sm:bottom-3 left-1/2 -translate-x-1/2 bg-gray-900 text-white px-3 sm:px-4 py-1.5 sm:py-2 flex items-center gap-2 sm:gap-3 z-10">
+    <span class="text-[10px] sm:text-xs">Made with ❤️ by Vasu-Devs</span>
+    <div class="flex items-center gap-2">
+      <a href="https://github.com/vasu-devs" target="_blank" rel="noopener noreferrer" class="text-white hover:text-gray-300">
+        <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <path fill-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" clip-rule="evenodd" />
+        </svg>
+      </a>
+      <a href="https://x.com/Vasu_Devs" target="_blank" rel="noopener noreferrer" class="text-white hover:text-gray-300">
+        <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+        </svg>
+      </a>
+    </div>
+  </div>
+
+  <script>
+    const video = document.getElementById("video");
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d", { willReadFrequently: true, alpha: false });
+  const asciiEl = document.getElementById("ascii");
+  const paletteSel = document.getElementById("palette");
+  const bgToggle = document.getElementById("bgToggle");
+  const themeToggle = document.getElementById("themeToggle");
+  const resSlider = document.getElementById("resSlider");
+  const resValue = document.getElementById("resValue");
+  const emojiCanvas = document.getElementById("emojiCanvas");
+  const ectx = emojiCanvas.getContext("2d", { willReadFrequently: true, alpha: true });
+  let chars = " .:-=+*#%@"; // current palette (light -> dark)
+  // Cache glyph bitmaps for emoji mode to avoid per-cell text layout
+  const glyphCache = new Map(); // key: `${glyph}_${w}x${h}` => HTMLCanvasElement
+  // Scale controls the approximate number of ASCII columns as a fraction of camera width
+  let scale = 0.25;
+  // Font size for text rendering (pixels) - controlled by resolution slider
+  let fontSize = 6;
+  // Mirror horizontally (selfie view)
+  const MIRROR = true;
+    // Foreground mask threshold (0..255). Higher = crisper edges, less bleed.
+    const MASK_THRESHOLD = 200;
+
+    let ready = false;
+  // Character cell metrics (pixels). Measured once after page loads.
+  let charW = 6;
+  let charH = 6;
+  let charMetricsDirty = true;
+  window.addEventListener('resize', () => { charMetricsDirty = true; });
+    // Reuse a mask canvas to avoid creating it every frame
+    const maskCanvas = document.createElement("canvas");
+    const mctx = maskCanvas.getContext("2d", { willReadFrequently: true, alpha: false });
+    // Prefer nearest-neighbor sampling to keep edges crisp
+    ctx.imageSmoothingEnabled = false;
+    ctx.msImageSmoothingEnabled = false;
+    ctx.mozImageSmoothingEnabled = false;
+    ctx.webkitImageSmoothingEnabled = false;
+    ctx.imageSmoothingQuality = 'low';
+    mctx.imageSmoothingEnabled = false;
+    mctx.msImageSmoothingEnabled = false;
+    mctx.mozImageSmoothingEnabled = false;
+    mctx.webkitImageSmoothingEnabled = false;
+    mctx.imageSmoothingQuality = 'low';
+  ectx.imageSmoothingEnabled = false;
+  ectx.msImageSmoothingEnabled = false;
+  ectx.mozImageSmoothingEnabled = false;
+  ectx.webkitImageSmoothingEnabled = false;
+  ectx.imageSmoothingQuality = 'low';
+
+  // Emoji rendering config (canvas-based to ensure alignment)
+  const EMOJI_FONT_FAMILY = '"Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif';
+  const EMOJI_CELL = 18; // base pixel size per emoji cell (square)
+  const EMOJI_MAX_PIXELS = 1200000; // cap internal emoji canvas pixels to protect FPS
+  const REFINE_EVERY = 0; // DISABLED - no mask refinement to prevent smoothing
+  let removeBg = false; // Off by default
+  bgToggle.addEventListener('change', () => { removeBg = bgToggle.checked; });
+
+  // Theme toggle
+  let isDark = true;
+  const controls = document.getElementById('controls');
+  const footer = document.getElementById('footer');
+  themeToggle.addEventListener('click', () => {
+    isDark = !isDark;
+    if (isDark) {
+      document.body.classList.remove('bg-white', 'text-black');
+      document.body.classList.add('bg-black', 'text-white');
+      asciiEl.classList.remove('text-black');
+      asciiEl.classList.add('text-white');
+      controls.classList.remove('bg-gray-200', 'text-black', 'light-mode');
+      controls.classList.add('bg-gray-900', 'text-white');
+      footer.classList.remove('bg-gray-200', 'text-black', 'light-mode');
+      footer.classList.add('bg-gray-900', 'text-white');
+    } else {
+      document.body.classList.remove('bg-black', 'text-white');
+      document.body.classList.add('bg-white', 'text-black');
+      asciiEl.classList.remove('text-white');
+      asciiEl.classList.add('text-black');
+      controls.classList.remove('bg-gray-900', 'text-white');
+      controls.classList.add('bg-gray-200', 'text-black', 'light-mode');
+      footer.classList.remove('bg-gray-900', 'text-white');
+      footer.classList.add('bg-gray-200', 'text-black', 'light-mode');
+    }
+    themeToggle.textContent = isDark ? '🌙' : '☀️';
+  });
+
+  // Resolution slider - controls grid density (number of characters)
+  let targetScale = 0.2; // Initial target
+  let currentScale = 0.2; // Actual scale used for rendering
+  resSlider.addEventListener('input', () => {
+    const sliderValue = parseFloat(resSlider.value);
+    // Map 10-60 range to 0.1-0.4 scale
+    targetScale = (sliderValue / 60) * 0.4;
+  });
+  
+  // Smooth scale transition
+  function updateScale() {
+    const smoothingFactor = 0.15; // Lower = smoother but slower
+    currentScale += (targetScale - currentScale) * smoothingFactor;
+    scale = currentScale;
+  }
+
+    const PALETTES = {
+      basic: {
+        chars: " .:-=+*#%@",
+        font: 'monospace'
+      },
+      extended: {
+        // light -> dark (curated density ordering)
+        chars: "                              .'`\"^,:;Il!i~+_-?][}{1)(|\\/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@$".replace("\\\\/","\\/"),
+        font: 'monospace'
+      },
+      blocks: {
+        // light -> dark
+        chars: " ░▒▓█",
+        font: 'monospace'
+      },
+      emoji: {
+        // light -> dark (rendered on canvas for alignment)
+        chars: "       ▫️◻️◽️⬜️⚪️🟦🟩🟨🟧🟥🟪◼️⬛️",
+        font: EMOJI_FONT_FAMILY
+      },
+      emojiMega: {
+        // A larger emoji set (light -> dark-ish). Colors vary; mapping uses brightness.
+        chars: "       ▫️◻️◽️⬜️⚪️💡✨⭐️🌟🍀🍎🍊🍋🍌🍉🍇🍓🍒🥝🥑🍪🍩🍫🥜🍞🍔🍕🍟🌭🍗🍖🥩🍳🎈🎀🎁🎲🎮🎧🎤🎹🎺🎷🎸🎻🏀🏈⚽️⚾️🎯🎳🔔🔆📒📗📘📙📕📚🧱🧊🗿🔵🟢🟡🟠🔴🟣◼️⬛️",
+        font: EMOJI_FONT_FAMILY
+      }
+    };
+
+    function applyPalette(key) {
+      if (key === 'custom') {
+        const input = prompt('Enter characters from light to dark (no spaces unless intended):', chars);
+        if (input && input.length > 0) {
+          chars = input;
+        }
+        // keep current font; re-measure and show text mode
+        asciiEl.style.display = '';
+        emojiCanvas.style.display = 'none';
+        measureCharCell();
+        return;
+      }
+      const p = PALETTES[key] || PALETTES.basic;
+      chars = p.chars;
+      asciiEl.style.fontFamily = p.font;
+      // If emoji palette, switch to canvas-based rendering to enforce fixed cell size
+      if (key.startsWith('emoji')) {
+        asciiEl.style.display = 'none';
+        emojiCanvas.style.display = 'block';
+      } else {
+        asciiEl.style.display = '';
+        emojiCanvas.style.display = 'none';
+        // Re-measure after font change (text mode only)
+        measureCharCell();
+      }
+    }
+
+    paletteSel.addEventListener('change', (e) => applyPalette(e.target.value));
+
+    function measureCharCell() {
+      // Create a temporary measuring span matching the ASCII pre's font.
+      const span = document.createElement("span");
+      span.textContent = "MMMMMMMMMM"; // 10 monospace chars for width averaging
+      span.style.visibility = "hidden";
+      span.style.position = "absolute";
+      // Inherit font from the ASCII element to match rendering
+      const st = getComputedStyle(asciiEl);
+      span.style.fontFamily = st.fontFamily;
+      span.style.fontSize = st.fontSize;
+      span.style.lineHeight = st.lineHeight;
+      document.body.appendChild(span);
+      const rect = span.getBoundingClientRect();
+      const measuredW = rect.width / 10;
+      // Prefer line-height for height, fallback to bounding box
+      const lh = parseFloat(st.lineHeight);
+      const measuredH = Number.isFinite(lh) && lh > 0 ? lh : rect.height;
+      document.body.removeChild(span);
+      if (measuredW > 0) charW = measuredW;
+      if (measuredH > 0) charH = measuredH;
+      charMetricsDirty = false;
+    }
+
+    function getGlyphCell(glyph, cw, ch) {
+      const key = `${glyph}_${cw}x${ch}`;
+      const cached = glyphCache.get(key);
+      if (cached) return cached;
+      const cell = document.createElement('canvas');
+      cell.width = cw; cell.height = ch;
+      const ictx = cell.getContext('2d');
+      ictx.imageSmoothingEnabled = false;
+      ictx.textAlign = 'center';
+      ictx.textBaseline = 'middle';
+      ictx.font = `${Math.floor(ch*0.9)}px ${EMOJI_FONT_FAMILY}`;
+      ictx.fillText(glyph, cw/2, ch/2);
+      glyphCache.set(key, cell);
+      return cell;
+    }
+
+    const selfieSegmentation = new SelfieSegmentation({
+      locateFile: (file) =>
+        `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${file}`,
+    });
+    selfieSegmentation.setOptions({ modelSelection: 1 });
+
+    selfieSegmentation.onResults((results) => {
+      ready = true;
+  // Ensure character metrics are up-to-date only when needed
+  if (charMetricsDirty) measureCharCell();
+  
+  // Update scale smoothly
+  updateScale();
+  
+  const segMask = results.segmentationMask;
+  // Preserve camera aspect ratio in ASCII using measured character aspect
+  const arVideo = video.videoWidth / video.videoHeight;
+  const arChar = (charW / charH); // width/height of each character cell (use text metrics to match displayed size)
+  const columns = Math.max(1, Math.floor(video.videoWidth * scale));
+  const rows = Math.max(1, Math.floor(columns / (arVideo / arChar)));
+  const w = columns;
+  const h = rows;
+      canvas.width = w;
+      canvas.height = h;
+
+      // Draw the video frame (optionally mirrored) into the sampling canvas
+      ctx.clearRect(0, 0, w, h);
+      if (MIRROR) {
+        ctx.save();
+        ctx.scale(-1, 1);
+        ctx.drawImage(video, -w, 0, w, h);
+        ctx.restore();
+      } else {
+        ctx.drawImage(video, 0, 0, w, h);
+      }
+      const frame = ctx.getImageData(0, 0, w, h);
+
+      // Resize and refine mask only if removing background; else bypass mask
+      let maskData = null;
+      if (removeBg) {
+        maskCanvas.width = w;
+        maskCanvas.height = h;
+        mctx.clearRect(0, 0, w, h);
+        if (MIRROR) {
+          mctx.save();
+          mctx.scale(-1, 1);
+          mctx.drawImage(segMask, -w, 0, w, h);
+          mctx.restore();
+        } else {
+          mctx.drawImage(segMask, 0, 0, w, h);
+        }
+
+        // --- Mask Refinement ---
+        const maskImage = mctx.getImageData(0, 0, w, h);
+        maskData = maskImage.data;
+
+        // Frame skipping for performance
+        if (!window.frameCount) window.frameCount = 0;
+        window.frameCount++;
+        const doRefine = (window.frameCount % REFINE_EVERY) === 0;
+
+        // Temporal smoothing buffer (simple exponential moving average)
+        if (!window.prevMask || window.prevMask.length !== w * h) {
+          window.prevMask = new Float32Array(w * h).fill(0);
+        }
+
+        const smoothFactor = 0.0; // DISABLED - no smoothing for crisp edges
+        for (let i = 0; i < w * h; i++) {
+          const alpha = maskData[i * 4] / 255; // use grayscale channel as mask
+          window.prevMask[i] = smoothFactor * window.prevMask[i] + (1 - smoothFactor) * alpha;
+        }
+
+        // Guided filter approximation (edge-aware blur)
+        if (doRefine) {
+          const refined = new Float32Array(w * h);
+          const radius = 1; // reduced from 2 for sharper edges
+          for (let y = 0; y < h; y++) {
+            for (let x = 0; x < w; x++) {
+              let sum = 0, wsum = 0;
+              const idxC = (y * w + x) * 4;
+              const cr = frame.data[idxC], cg = frame.data[idxC + 1], cb = frame.data[idxC + 2];
+              for (let dy = -radius; dy <= radius; dy++) {
+                const ny = y + dy;
+                if (ny < 0 || ny >= h) continue;
+                for (let dx = -radius; dx <= radius; dx++) {
+                  const nx = x + dx;
+                  if (nx < 0 || nx >= w) continue;
+                  const idxN4 = (ny * w + nx) * 4;
+                  const nr = frame.data[idxN4], ng = frame.data[idxN4 + 1], nb = frame.data[idxN4 + 2];
+                  const diff = (cr - nr) * (cr - nr) + (cg - ng) * (cg - ng) + (cb - nb) * (cb - nb);
+                  const weight = Math.exp(-diff / 2000.0); // reduced from 5000 for sharper edges
+                  sum += window.prevMask[ny * w + nx] * weight;
+                  wsum += weight;
+                }
+              }
+              refined[y * w + x] = sum / (wsum || 1);
+            }
+          }
+
+          // Replace raw mask data with refined one
+          for (let i = 0; i < w * h; i++) {
+            const v = Math.min(1, Math.max(0, refined[i]));
+            const pv = v * 255;
+            maskData[i * 4] = pv;
+            maskData[i * 4 + 1] = pv;
+            maskData[i * 4 + 2] = pv;
+            maskData[i * 4 + 3] = 255;
+          }
+        }
+      }
+
+      // Render: text mode or emoji canvas mode
+      if (emojiCanvas.style.display !== 'none') {
+        // Emoji canvas rendering - fixed display size, responsive to screen
+        // Calculate display size once based on viewport (not per frame, not per resolution)
+        if (!window.displayWidth) {
+          window.displayWidth = Math.min(window.innerWidth * 0.95, 1200);
+          window.displayHeight = Math.min(window.innerHeight * 0.85, 800);
+        }
+        const targetWidth = window.displayWidth;
+        const targetHeight = window.displayHeight;
+        
+        // Calculate cell size based on FIXED display dimensions and VARIABLE grid size
+        let cw = Math.floor(targetWidth / w);
+        let ch = Math.floor(targetHeight / h);
+        
+        // Keep cells square for emoji rendering
+        const cellSize = Math.min(cw, ch);
+        cw = ch = Math.max(4, cellSize);
+        
+        const internalW = w * cw;
+        const internalH = h * ch;
+        if (emojiCanvas.width !== internalW) emojiCanvas.width = internalW;
+        if (emojiCanvas.height !== internalH) emojiCanvas.height = internalH;
+        ectx.clearRect(0, 0, emojiCanvas.width, emojiCanvas.height);
+
+        const bgGlyph = chars[0];
+        for (let y = 0; y < h; y++) {
+          for (let x = 0; x < w; x++) {
+            const idx = (y * w + x) * 4;
+            const r = frame.data[idx];
+            const g = frame.data[idx + 1];
+            const b = frame.data[idx + 2];
+            let brightness = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+            // Invert brightness in light mode so dark pixels map to dense chars
+            if (!isDark) brightness = 255 - brightness;
+            const maskValue = maskData ? maskData[idx] : 255;
+            const glyph = (maskValue / 255) > 0.4
+              ? chars[Math.floor((brightness / 255) * (chars.length - 1))]
+              : bgGlyph;
+            const cellBmp = getGlyphCell(glyph, cw, ch);
+            ectx.drawImage(cellBmp, x * cw, y * ch);
+          }
+        }
+      } else {
+        // Text mode (pre element)
+        // Calculate font size to fit FIXED display size (calculated once, not per frame, not per resolution)
+        if (!window.displayWidth) {
+          window.displayWidth = Math.min(window.innerWidth * 0.95, 1200);
+          window.displayHeight = Math.min(window.innerHeight * 0.85, 800);
+        }
+        const targetWidth = window.displayWidth;
+        const targetHeight = window.displayHeight;
+        
+        // Font size adjusts based on grid size (w, h) to fill the FIXED display area
+        const fontSizeByWidth = targetWidth / (w * charW / fontSize);
+        const fontSizeByHeight = targetHeight / (h * charH / fontSize);
+        const newFontSize = Math.floor(Math.min(fontSizeByWidth, fontSizeByHeight));
+        
+        if (newFontSize !== fontSize) {
+          fontSize = newFontSize;
+          asciiEl.style.fontSize = fontSize + 'px';
+          asciiEl.style.lineHeight = fontSize + 'px';
+          charMetricsDirty = true;
+        }
+        
+        let ascii = "";
+        for (let y = 0; y < h; y++) {
+          for (let x = 0; x < w; x++) {
+            const idx = (y * w + x) * 4;
+            // Perceptual luma for better contrast on moving hands
+            const r = frame.data[idx];
+            const g = frame.data[idx + 1];
+            const b = frame.data[idx + 2];
+            let brightness = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+            // Invert brightness in light mode so dark pixels map to dense chars
+            if (!isDark) brightness = 255 - brightness;
+            const maskValue = maskData ? maskData[idx] : 255;
+            ascii += (maskValue / 255) > 0.4
+              ? chars[Math.floor((brightness / 255) * (chars.length - 1))]
+              : ".";
+          }
+          ascii += "\n";
+        }
+        asciiEl.textContent = ascii;
+      }
+    });
+
+
+    async function start() {
+      // Prefer higher framerate and resolution to reduce motion blur on hands
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+          frameRate: { ideal: 60, max: 60 }
+        }
+      });
+      video.srcObject = stream;
+
+  await new Promise((res) => (video.onloadedmetadata = res));
+  // Apply initial palette and measure once video metadata is ready (fonts applied)
+  applyPalette(paletteSel.value);
+
+      async function loop() {
+        await selfieSegmentation.send({ image: video });
+        requestAnimationFrame(loop);
+      }
+      loop();
+    }
+
+    start().catch((e) => console.error("Error: " + e.message));
+  </script>
+</body>
+</html>
