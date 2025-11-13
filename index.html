@@ -625,45 +625,6 @@
         }
       }
 
-    document.getElementById("captureBtn").addEventListener("click", () => {
-      const usingEmoji = (emojiCanvas.style.display !== "none");
-
-      if (usingEmoji) {
-        // Save emoji canvas directly
-        downloadPNG(emojiCanvas.toDataURL("image/png"));
-        return;
-      }
-
-      // Convert ASCII <pre> into PNG
-      const ascii = asciiEl.innerText.split("\n");
-      const font = getComputedStyle(asciiEl).font;
-  
-      // Create temp canvas sized to text
-      const temp = document.createElement("canvas");
-      const ctx2 = temp.getContext("2d");
-
-      ctx2.font = font;
-      const lineHeight = parseInt(getComputedStyle(asciiEl).lineHeight);
-
-      const width = Math.max(...ascii.map(line => ctx2.measureText(line).width));
-      const height = ascii.length * lineHeight;
-
-      temp.width = width;
-      temp.height = height;
-
-      ctx2.font = font;
-      ctx2.fillStyle = isDark ? "#ffffff" : "#000000";
-      ctx2.textBaseline = "top";
-
-      ascii.forEach((line, i) => {
-      ctx2.fillText(line, 0, i * lineHeight);
-    });
-
-    downloadPNG(temp.toDataURL("image/png"));
-    });
-
-
-
       // Render: text mode or emoji canvas mode
       if (emojiCanvas.style.display !== 'none') {
         // Emoji canvas rendering - fixed display size, responsive to screen
@@ -783,6 +744,46 @@
       a.click();
     }
 
+    // --- CAPTURE HANDLER (FIXED SINGLE ATTACH) ---
+    const captureBtn = document.getElementById("captureBtn");
+
+// remove any accidental duplicates (safety)
+    captureBtn.replaceWith(captureBtn.cloneNode(true));
+    const fixedCaptureBtn = document.getElementById("captureBtn");
+
+    fixedCaptureBtn.addEventListener("click", () => {
+      const usingEmoji = (emojiCanvas.style.display !== "none");
+
+      if (usingEmoji) {
+        downloadPNG(emojiCanvas.toDataURL("image/png"));
+        return;
+      }
+
+      const ascii = asciiEl.innerText.split("\n");
+      const st = getComputedStyle(asciiEl);
+      const font = `${st.fontSize} ${st.fontFamily}`;
+      const lineHeight = parseInt(st.lineHeight);
+
+      const temp = document.createElement("canvas");
+      const ctx2 = temp.getContext("2d");
+      ctx2.font = font;
+
+      const width = Math.max(...ascii.map(line => ctx2.measureText(line).width));
+      const height = ascii.length * lineHeight;
+
+      temp.width = width;
+      temp.height = height;
+
+      ctx2.font = font;
+      ctx2.fillStyle = isDark ? "#ffffff" : "#000000";
+      ctx2.textBaseline = "top";
+
+      ascii.forEach((line, i) => {
+        ctx2.fillText(line, 0, i * lineHeight);
+      });
+
+      downloadPNG(temp.toDataURL("image/png"));
+    });
 
     
   </script>
