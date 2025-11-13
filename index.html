@@ -281,9 +281,10 @@
       <input type="range" id="resSlider" min="10" max="60" step="10" value="30" class="w-14 sm:w-16 md:w-20 flex-shrink-0" />
     </label>
 
-    <button id="captureBtn" class="text-[9px] sm:text-[10px] md:text-xs px-1.5 sm:px-2 md:px-3 py-0.5 sm:py-1 bg-gray-800 cursor-pointer flex-shrink-0">
+    <button id="captureBtn" class="text-[9px] sm:text-[10px] md:text-xs px-2 py-1 bg-gray-800 cursor-pointer">
       Capture
     </button>
+
 
     <button id="themeToggle" class="text-[9px] sm:text-[10px] md:text-xs px-1.5 sm:px-2 md:px-3 py-0.5 sm:py-1 bg-gray-800 cursor-pointer flex-shrink-0">
       🌙
@@ -625,17 +626,42 @@
       }
 
     document.getElementById("captureBtn").addEventListener("click", () => {
-    const usingEmoji = (emojiCanvas.style.display !== "none");
+      const usingEmoji = (emojiCanvas.style.display !== "none");
 
-    if (usingEmoji) {
-      // Save emoji canvas as image
-      saveCanvasPNG(emojiCanvas, "ascii-capture.png");
-    } else {
-      // Save plain ASCII text
-      const asciiText = asciiEl.innerText;
-      saveTextFile("ascii-capture.txt", asciiText);
-    }
+      if (usingEmoji) {
+        // Save emoji canvas directly
+        downloadPNG(emojiCanvas.toDataURL("image/png"));
+        return;
+      }
+
+      // Convert ASCII <pre> into PNG
+      const ascii = asciiEl.innerText.split("\n");
+      const font = getComputedStyle(asciiEl).font;
+  
+      // Create temp canvas sized to text
+      const temp = document.createElement("canvas");
+      const ctx2 = temp.getContext("2d");
+
+      ctx2.font = font;
+      const lineHeight = parseInt(getComputedStyle(asciiEl).lineHeight);
+
+      const width = Math.max(...ascii.map(line => ctx2.measureText(line).width));
+      const height = ascii.length * lineHeight;
+
+      temp.width = width;
+      temp.height = height;
+
+      ctx2.font = font;
+      ctx2.fillStyle = isDark ? "#ffffff" : "#000000";
+      ctx2.textBaseline = "top";
+
+      ascii.forEach((line, i) => {
+      ctx2.fillText(line, 0, i * lineHeight);
     });
+
+    downloadPNG(temp.toDataURL("image/png"));
+    });
+
 
 
       // Render: text mode or emoji canvas mode
@@ -750,23 +776,13 @@
 
     start().catch((e) => console.error("Error: " + e.message));
 
-    function saveTextFile(filename, text) {
-      const blob = new Blob([text], { type: "text/plain" });
-      const url = URL.createObjectURL(blob);
+    function downloadPNG(dataURL) {
       const a = document.createElement("a");
-      a.href = url;
-      a.download = filename;
+      a.href = dataURL;
+      a.download = "ascii-capture.png";
       a.click();
-      URL.revokeObjectURL(url);
-  }
+    }
 
-  function saveCanvasPNG(canvas, filename) {
-    const url = canvas.toDataURL("image/png");
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    a.click();
-  }
 
     
   </script>
