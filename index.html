@@ -280,7 +280,11 @@
       <span class="sm:hidden">R:</span>
       <input type="range" id="resSlider" min="10" max="60" step="10" value="30" class="w-14 sm:w-16 md:w-20 flex-shrink-0" />
     </label>
-    
+
+    <button id="captureBtn" class="text-[9px] sm:text-[10px] md:text-xs px-1.5 sm:px-2 md:px-3 py-0.5 sm:py-1 bg-gray-800 cursor-pointer flex-shrink-0">
+      Capture
+    </button>
+
     <button id="themeToggle" class="text-[9px] sm:text-[10px] md:text-xs px-1.5 sm:px-2 md:px-3 py-0.5 sm:py-1 bg-gray-800 cursor-pointer flex-shrink-0">
       🌙
     </button>
@@ -620,6 +624,20 @@
         }
       }
 
+    document.getElementById("captureBtn").addEventListener("click", () => {
+    const usingEmoji = (emojiCanvas.style.display !== "none");
+
+    if (usingEmoji) {
+      // Save emoji canvas as image
+      saveCanvasPNG(emojiCanvas, "ascii-capture.png");
+    } else {
+      // Save plain ASCII text
+      const asciiText = asciiEl.innerText;
+      saveTextFile("ascii-capture.txt", asciiText);
+    }
+    });
+
+
       // Render: text mode or emoji canvas mode
       if (emojiCanvas.style.display !== 'none') {
         // Emoji canvas rendering - fixed display size, responsive to screen
@@ -731,6 +749,26 @@
     }
 
     start().catch((e) => console.error("Error: " + e.message));
+
+    function saveTextFile(filename, text) {
+      const blob = new Blob([text], { type: "text/plain" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+  }
+
+  function saveCanvasPNG(canvas, filename) {
+    const url = canvas.toDataURL("image/png");
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+  }
+
+    
   </script>
 </body>
 </html>
