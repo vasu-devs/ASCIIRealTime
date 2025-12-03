@@ -53,7 +53,7 @@ body {
   margin: 0;
   padding: 0;
   width: 100vw;
-  height: 100vh;
+  height: 100dvh;
   overflow: hidden;
   background-color: var(--cam-bg);
   font-family: 'Share Tech Mono', monospace;
@@ -490,7 +490,7 @@ body.light-mode .toggle-switch input:checked+.toggle-indicator {
       ".      mode    .";
     gap: 15px;
     height: auto;
-    padding-bottom: 20px;
+    padding-bottom: max(20px, env(safe-area-inset-bottom));
     position: static;
     justify-items: center;
     align-items: center;

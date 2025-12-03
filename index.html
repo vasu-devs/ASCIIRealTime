@@ -411,7 +411,11 @@
         if (video.srcObject) {
           const tracks = video.srcObject.getTracks();
           tracks.forEach(track => track.stop());
+          video.srcObject = null;
         }
+
+        // Small delay to ensure camera hardware is released
+        await new Promise(r => setTimeout(r, 500));
 
         const stream = await navigator.mediaDevices.getUserMedia({
           video: {
@@ -423,6 +427,7 @@
         });
         video.srcObject = stream;
         await new Promise((res) => (video.onloadedmetadata = res));
+        video.play();
 
         // Initialize with default palette (Extended)
         applyPalette(paletteSel.value);
@@ -431,7 +436,9 @@
         if (!window.isLooping) {
           window.isLooping = true;
           async function loop() {
-            await selfieSegmentation.send({ image: video });
+            if (video.readyState >= 2) {
+              await selfieSegmentation.send({ image: video });
+            }
             requestAnimationFrame(loop);
           }
           loop();
@@ -439,6 +446,10 @@
       } catch (e) {
         console.error("Error: " + e.message);
         alert("Camera access denied or not available.");
+        // Revert facing mode if switch failed
+        if (currentFacingMode !== facingMode) {
+          currentFacingMode = facingMode === 'user' ? 'environment' : 'user';
+        }
       }
     }
 
@@ -499,7 +510,12 @@
       ctxCap.fillStyle = isDark ? '#121212' : '#f0f0f0';
       ctxCap.fillRect(0, 0, captureCanvas.width, captureCanvas.height);
       ctxCap.font = `${fSize}px ${font}`;
-      ctxCap.fillStyle = isDark ? '#00ffcc' : '#1a1a1a';
+      const isBlackMode = document.body.classList.contains('black-mode');
+      if (isBlackMode) {
+        ctxCap.fillStyle = '#ffffff';
+      } else {
+        ctxCap.fillStyle = isDark ? '#00ffcc' : '#1a1a1a';
+      }
       ctxCap.textBaseline = 'top';
 
       lines.forEach((line, i) => {
