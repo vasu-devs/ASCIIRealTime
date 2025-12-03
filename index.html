@@ -396,8 +396,8 @@
     const shutterBtn = document.getElementById('shutter-btn');
     const micToggleContainer = document.getElementById('mic-toggle-container');
 
-    modePhoto.addEventListener('click', () => setMode('photo'));
-    modeVideo.addEventListener('click', () => setMode('video'));
+    modePhoto.addEventListener('click', () => { setMode('photo'); });
+    modeVideo.addEventListener('click', () => { setMode('video'); });
 
     function setMode(mode) {
       currentMode = mode;
