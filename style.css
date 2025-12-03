@@ -1,0 +1,484 @@
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
+
+:root {
+  --cam-bg: #121212;
+  --cam-dark: #0a0a0a;
+  --cam-accent: #ff3333;
+  /* Red for recording/important */
+  --cam-text: #00ffcc;
+  /* Cyan/Green for OSD */
+  --cam-text-dim: rgba(0, 255, 204, 0.6);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --shutter-size: 80px;
+}
+
+/* Light Mode Overrides */
+body.light-mode {
+  --cam-bg: #f0f0f0;
+  --cam-dark: #e0e0e0;
+  --cam-text: #000000;
+  /* Pure Black for max contrast */
+  --cam-text-dim: rgba(0, 0, 0, 0.5);
+  --glass-border: rgba(0, 0, 0, 0.1);
+}
+
+* {
+  box-sizing: border-box;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background-color: var(--cam-bg);
+  font-family: 'Share Tech Mono', monospace;
+  color: var(--cam-text);
+  display: flex;
+  flex-direction: column;
+  transition: background-color 0.3s, color 0.3s;
+}
+
+/* --- Main Layout --- */
+#app-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: grid;
+  grid-template-rows: 60px 1fr 120px;
+  /* Header, Viewfinder, Controls */
+}
+
+/* --- Header / Top Bar --- */
+#top-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 20px;
+  background: var(--cam-dark);
+  border-bottom: 1px solid var(--glass-border);
+  z-index: 10;
+  transition: background-color 0.3s, border-color 0.3s;
+}
+
+.brand {
+  font-size: 1.2rem;
+  letter-spacing: 2px;
+  color: var(--cam-text);
+  /* Adapted to theme */
+  text-transform: uppercase;
+}
+
+.osd-group {
+  display: flex;
+  gap: 20px;
+  font-size: 0.9rem;
+}
+
+.osd-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.rec-dot {
+  width: 10px;
+  height: 10px;
+  background-color: #333;
+  /* Default off */
+  border-radius: 50%;
+  transition: background-color 0.2s;
+}
+
+body.light-mode .rec-dot {
+  background-color: #ccc;
+}
+
+.rec-active .rec-dot {
+  background-color: var(--cam-accent) !important;
+  animation: blink 1s infinite;
+}
+
+@keyframes blink {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.3;
+  }
+}
+
+/* --- Viewfinder Area --- */
+#viewfinder {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: var(--cam-bg);
+  /* Match body bg */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+  transition: background-color 0.3s;
+}
+
+#ascii,
+#emojiCanvas {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+/* Light Mode Visibility Fix */
+body.light-mode #ascii {
+  font-weight: 900;
+  /* Extra Bold */
+  text-shadow: 0 0 1px rgba(0, 0, 0, 0.3);
+  /* Subtle stroke */
+}
+
+/* OSD Overlays on Viewfinder */
+.viewfinder-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.vf-corners {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  top: 0;
+  left: 0;
+  border: 2px solid transparent;
+}
+
+.vf-corners::before,
+.vf-corners::after {
+  content: "";
+  position: absolute;
+  width: 40px;
+  height: 40px;
+  border: 2px solid var(--cam-text-dim);
+  transition: all 0.3s ease;
+}
+
+.vf-corners::before {
+  top: 20px;
+  left: 20px;
+  border-right: none;
+  border-bottom: none;
+}
+
+.vf-corners::after {
+  bottom: 20px;
+  right: 20px;
+  border-left: none;
+  border-top: none;
+}
+
+.vf-crosshair {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--cam-text-dim);
+  opacity: 0.5;
+}
+
+.vf-crosshair::before,
+.vf-crosshair::after {
+  content: "";
+  position: absolute;
+  background: var(--cam-text-dim);
+}
+
+.vf-crosshair::before {
+  top: 9px;
+  left: -5px;
+  width: 30px;
+  height: 1px;
+}
+
+.vf-crosshair::after {
+  left: 9px;
+  top: -5px;
+  height: 30px;
+  width: 1px;
+}
+
+/* --- Control Deck / Bottom Bar --- */
+#control-deck {
+  background: var(--cam-dark);
+  border-top: 1px solid var(--glass-border);
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  padding: 0 20px;
+  z-index: 10;
+  transition: background-color 0.3s, border-color 0.3s;
+}
+
+.deck-left,
+.deck-right {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.deck-right {
+  justify-content: flex-end;
+}
+
+/* Shutter Button */
+#shutter-container {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+}
+
+#shutter-btn {
+  width: var(--shutter-size);
+  height: var(--shutter-size);
+  border-radius: 50%;
+  background: linear-gradient(145deg, #2a2a2a, #1a1a1a);
+  border: 4px solid #333;
+  box-shadow:
+    0 0 10px rgba(0, 0, 0, 0.5),
+    inset 0 0 10px rgba(0, 0, 0, 0.8);
+  cursor: pointer;
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: all 0.2s ease;
+}
+
+body.light-mode #shutter-btn {
+  background: linear-gradient(145deg, #e6e6e6, #ffffff);
+  border: 4px solid #ccc;
+  box-shadow:
+    0 5px 15px rgba(0, 0, 0, 0.1),
+    inset 0 0 10px rgba(255, 255, 255, 0.8);
+}
+
+#shutter-btn:active {
+  transform: scale(0.95);
+}
+
+#shutter-inner {
+  width: 80%;
+  height: 80%;
+  border-radius: 50%;
+  background: linear-gradient(145deg, #ff4444, #cc0000);
+  border: 2px solid #550000;
+  box-shadow: inset 0 2px 5px rgba(255, 255, 255, 0.3);
+  transition: all 0.3s ease;
+}
+
+/* Recording State */
+#shutter-btn.recording {
+  border-color: var(--cam-accent);
+  box-shadow: 0 0 15px rgba(255, 51, 51, 0.4);
+}
+
+#shutter-btn.recording #shutter-inner {
+  width: 50%;
+  height: 50%;
+  border-radius: 4px;
+  /* Square for Stop */
+  background: var(--cam-accent);
+}
+
+/* Mode Switch */
+.mode-switch {
+  display: flex;
+  background: #222;
+  border-radius: 20px;
+  padding: 2px;
+  border: 1px solid #444;
+}
+
+body.light-mode .mode-switch {
+  background: #ddd;
+  border: 1px solid #bbb;
+}
+
+.mode-option {
+  padding: 4px 12px;
+  border-radius: 16px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  color: #888;
+  transition: all 0.2s;
+}
+
+body.light-mode .mode-option {
+  color: #666;
+}
+
+.mode-option.active {
+  background: var(--cam-text-dim);
+  color: #000;
+  font-weight: bold;
+}
+
+body.light-mode .mode-option.active {
+  background: #fff;
+  color: #000;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Controls Styling */
+.cam-control {
+  background: transparent;
+  border: 1px solid var(--cam-text-dim);
+  color: var(--cam-text);
+  font-family: 'Share Tech Mono', monospace;
+  padding: 5px 10px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  text-transform: uppercase;
+  transition: all 0.2s;
+}
+
+.cam-control:hover {
+  background: var(--cam-text-dim);
+  color: #000;
+}
+
+body.light-mode .cam-control:hover {
+  color: #fff;
+}
+
+select.cam-control {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 20px;
+  background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%2300ffcc%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
+  background-repeat: no-repeat;
+  background-position: right 5px top 50%;
+  background-size: 8px auto;
+}
+
+body.light-mode select.cam-control {
+  background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23000000%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
+}
+
+input[type="range"] {
+  -webkit-appearance: none;
+  background: transparent;
+  width: 100px;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  height: 12px;
+  width: 6px;
+  background: var(--cam-text);
+  cursor: pointer;
+  margin-top: -4px;
+}
+
+input[type="range"]::-webkit-slider-runnable-track {
+  width: 100%;
+  height: 4px;
+  cursor: pointer;
+  background: var(--cam-text-dim);
+}
+
+/* Checkbox styled as toggle */
+.toggle-switch {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+}
+
+.toggle-switch input {
+  display: none;
+}
+
+.toggle-indicator {
+  width: 30px;
+  height: 15px;
+  background: #333;
+  border: 1px solid var(--cam-text-dim);
+  position: relative;
+  transition: all 0.2s;
+}
+
+body.light-mode .toggle-indicator {
+  background: #ccc;
+}
+
+.toggle-indicator::after {
+  content: "";
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 11px;
+  height: 11px;
+  background: var(--cam-text-dim);
+  transition: all 0.2s;
+}
+
+.toggle-switch input:checked+.toggle-indicator {
+  background: rgba(0, 255, 204, 0.2);
+}
+
+body.light-mode .toggle-switch input:checked+.toggle-indicator {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.toggle-switch input:checked+.toggle-indicator::after {
+  left: 16px;
+  background: var(--cam-text);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  #control-deck {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto auto;
+    gap: 10px;
+    padding: 10px;
+    height: auto;
+  }
+
+  #shutter-container {
+    grid-row: 1;
+    order: 2;
+  }
+
+  .deck-left {
+    justify-content: center;
+    order: 1;
+  }
+
+  .deck-right {
+    justify-content: center;
+    order: 3;
+  }
+
+  #app-container {
+    grid-template-rows: 50px 1fr auto;
+  }
+}
