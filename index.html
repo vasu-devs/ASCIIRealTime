@@ -19,9 +19,9 @@
         <div class="osd-item" id="rec-indicator">
           <div class="rec-dot"></div> REC
         </div>
-        <div class="osd-item">ISO 800</div>
-        <div class="osd-item" id="time-display">00:00:00</div>
-        <div class="osd-item" id="battery-display">BAT --%</div>
+        <div class="osd-item hidden-mobile">ISO 800</div>
+        <div class="osd-item hidden-mobile" id="time-display">00:00:00</div>
+        <div class="osd-item hidden-mobile" id="battery-display">BAT --%</div>
       </div>
     </div>
 
@@ -54,7 +54,7 @@
           <option value="custom">Custom</option>
         </select>
 
-        <label class="toggle-switch">
+        <label class="toggle-switch" id="bg-toggle-container">
           <input type="checkbox" id="bgToggle" />
           <div class="toggle-indicator"></div>
           <span>RM BG</span>
@@ -78,12 +78,22 @@
           <span>MIC</span>
         </label>
 
-        <label style="display: flex; align-items: center; gap: 5px;">
+        <label style="display: flex; align-items: center; gap: 5px;" id="res-container">
           <span>RES</span>
           <input type="range" id="resSlider" min="10" max="60" step="10" value="30" />
         </label>
 
         <button id="themeToggle" class="cam-control" title="Toggle Theme">🌙</button>
+
+        <button id="switchCamBtn" class="cam-control mobile-only" style="border: none; padding: 0;"
+          title="Switch Camera">
+          <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M23 4v6h-6"></path>
+            <path d="M1 20v-6h6"></path>
+            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+          </svg>
+        </button>
       </div>
     </div>
   </div>
@@ -167,11 +177,29 @@
     bgToggle.addEventListener('change', () => { removeBg = bgToggle.checked; });
 
     // Theme Logic
+    const themes = ['dark', 'light', 'black'];
+    let currentThemeIndex = 0; // 0: dark, 1: light, 2: black
     let isDark = true;
+
     themeToggle.addEventListener('click', () => {
-      isDark = !isDark;
-      document.body.classList.toggle('light-mode');
-      themeToggle.textContent = isDark ? '🌙' : '☀️';
+      currentThemeIndex = (currentThemeIndex + 1) % themes.length;
+      const theme = themes[currentThemeIndex];
+
+      document.body.classList.remove('light-mode', 'black-mode');
+
+      if (theme === 'light') {
+        document.body.classList.add('light-mode');
+        themeToggle.textContent = '☀️';
+        isDark = false;
+      } else if (theme === 'black') {
+        document.body.classList.add('black-mode');
+        themeToggle.textContent = '⚫';
+        isDark = true; // Black mode is technically dark for rendering purposes
+      } else {
+        // Dark mode (default)
+        themeToggle.textContent = '🌙';
+        isDark = true;
+      }
     });
 
     let targetScale = 0.2;
@@ -271,7 +299,11 @@
       canvas.height = h;
 
       ctx.clearRect(0, 0, w, h);
-      if (MIRROR) {
+
+      // Mirror only if user facing
+      const shouldMirror = currentFacingMode === 'user';
+
+      if (shouldMirror) {
         ctx.save();
         ctx.scale(-1, 1);
         ctx.drawImage(video, -w, 0, w, h);
@@ -286,7 +318,7 @@
         maskCanvas.width = w;
         maskCanvas.height = h;
         mctx.clearRect(0, 0, w, h);
-        if (MIRROR) {
+        if (shouldMirror) {
           mctx.save();
           mctx.scale(-1, 1);
           mctx.drawImage(segMask, -w, 0, w, h);
@@ -366,28 +398,51 @@
 
     });
 
-    async function start() {
+    let currentFacingMode = 'user';
+    const switchCamBtn = document.getElementById('switchCamBtn');
+
+    switchCamBtn.addEventListener('click', () => {
+      currentFacingMode = currentFacingMode === 'user' ? 'environment' : 'user';
+      start(currentFacingMode);
+    });
+
+    async function start(facingMode = 'user') {
       try {
+        if (video.srcObject) {
+          const tracks = video.srcObject.getTracks();
+          tracks.forEach(track => track.stop());
+        }
+
         const stream = await navigator.mediaDevices.getUserMedia({
-          video: { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 60, max: 60 } }
+          video: {
+            facingMode: facingMode,
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+            frameRate: { ideal: 60, max: 60 }
+          }
         });
         video.srcObject = stream;
         await new Promise((res) => (video.onloadedmetadata = res));
+
         // Initialize with default palette (Extended)
         applyPalette(paletteSel.value);
 
-        async function loop() {
-          await selfieSegmentation.send({ image: video });
-          requestAnimationFrame(loop);
+        // Ensure loop is only started once
+        if (!window.isLooping) {
+          window.isLooping = true;
+          async function loop() {
+            await selfieSegmentation.send({ image: video });
+            requestAnimationFrame(loop);
+          }
+          loop();
         }
-        loop();
       } catch (e) {
         console.error("Error: " + e.message);
         alert("Camera access denied or not available.");
       }
     }
 
-    start();
+    start(currentFacingMode);
 
     // --- Mode Switching ---
     let currentMode = 'photo';
